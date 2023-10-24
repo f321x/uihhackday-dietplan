@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width">
+    <title>Diet Plan</title>
+        <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .content {
+            flex: 1;
+        }
+        .footer {
+            background: #eee;
+            padding: 1em;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="content">
+  <h1>HN Bildungscampus Mensa diet plan generator</h1>
+    <h3>!!!NOW POWERED BY GPT4!!!</h3>
+
+  <!-- Input Form -->
+  <form id="dietForm">
+    <label for="food">Enter your preferred diet:</label>
+    <input type="text" id="food" name="food" placeholder="Carnivore" required>
+    <input type="submit" value="Submit">
+  </form>
+
+  <!-- Box to display the result -->
+
+  <br >
+
+  <div id="resultBox" style="white-space: pre-line;">
+    <!-- Result will appear here -->
+  </div>
+<br >
+  <div id="paymentInfo" style="word-wrap: break-word;">
+    <!-- Result will appear here -->
+  </div>
+
+
+  <script>
+    const form = document.getElementById('dietForm');
+
+    form.addEventListener('submit', function(event) {
+      event.preventDefault();
+      const foodItem = document.getElementById('food').value;
+      if (!foodItem) {
+        alert("Food Item can't be empty");
+        return;
+      }
+      const data = { diet: foodItem, payment_hash: payment_hash };
+
+      fetch('/request-diet-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      })
+      .then(response => {
+        if (response.status === 402) {
+          document.getElementById('resultBox').textContent = 'Payment not successful. Please reload and pay the lightning invoice.';
+        }
+        return response.json();
+      })
+      .then(data => {
+        const uuid = data.uuid;
+        pollForDietPlan(uuid);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
+    });
+
+    function pollForDietPlan(uuid) {
+        document.getElementById("resultBox").textContent = "Diet plan is being generated, please wait... ";
+        document.getElementById("paymentInfo").textContent = "Thanks for your order.";
+      // Periodically check for the status of the diet plan generation
+      const intervalId = setInterval(() => {
+        fetch(`/request-diet-plan-status/${uuid}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.result) {
+            // Display the result and stop polling
+            document.getElementById('resultBox').textContent = JSON.stringify(data.result);
+            clearInterval(intervalId);
+            document.getElementById('paymentInfo').textContent = "";
+            document.getElementById('resultBox').innerHTML = data.result.replace(/\n/g, '<br>');
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+        });
+      }, 2000); // Poll every 2 seconds
+    }
+  </script>
+
+        <script type="text/javascript">
+            let payment_hash;
+            function loadInvoice() {
+                    var xhttp = new XMLHttpRequest();
+                    xhttp.onreadystatechange = function () {
+                        if (this.readyState == 4 && this.status == 200) {
+                            var status = JSON.parse(this.responseText);
+                            document.getElementById("resultBox").textContent = "Pay the following Lightning invoice for 100 Satoshi to continue:";
+                            document.getElementById("paymentInfo").textContent = status['payment_request'];
+                            payment_hash = status['payment_hash'];
+                        }
+                    };
+                    xhttp.open("GET", "/get-invoice", true);
+                    xhttp.send();
+        }
+        window.onload = loadInvoice;
+        </script>
+  </div>
+<div class="footer">
+<h2>Find the source code in this repository:</h2>
+<div>https://github.com/f321x/uihhackday-dietplan</div>
+</div>
+</body>
+</html>
